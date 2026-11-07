@@ -1,0 +1,22 @@
+"use client";
+import { useState } from "react";
+import type { SimulationConfig } from "@/lib/simulation";
+import { configurationIssues, rubricTotal, studentView, validateDecisionResponses } from "@/lib/simulation-engine";
+
+export function StudentPreview({ config }: { config: SimulationConfig }) {
+  const view = studentView(config);
+  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [tested, setTested] = useState(false);
+  const issues = configurationIssues(config);
+  const missing = validateDecisionResponses(config, responses);
+  return <div className="simulation-preview">
+    <div className="notice"><div><strong>Student-facing configuration preview</strong><p>You can review the case and test decision responses. Stakeholder conversations, automated assessment, and classroom delivery require future integrations. No AI responses or scores are generated. Test responses stay on this screen only.</p></div></div>
+    {issues.length > 0 && <div className="form-error"><strong>Configuration needs attention</strong><ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div>}
+    <header className="student-case-header"><span className="badge">{view.difficulty}</span><h3>{view.title || "Untitled simulation"}</h3><p>{view.company} · {view.industry}</p><p><strong>Your role:</strong> {view.role || "Not configured"}</p></header>
+    <section><h3>Your scenario</h3><p className="preserve-text">{view.background || "No background configured."}</p><h4>Learning objectives</h4><p className="preserve-text">{view.objectives || "No objectives configured."}</p></section>
+    <section><h3>People you will work with</h3>{view.stakeholders.length ? view.stakeholders.map(person => <article className="student-person" key={person.id}><h4>{person.name || "Unnamed stakeholder"} · {person.role}</h4><p>{person.personality}</p><p className="preserve-text"><strong>Information available to you:</strong> {person.knownInformation || "None provided."}</p><p className="preview-action-note">AI conversation is not connected. This is a stakeholder profile, not a chat.</p></article>) : <p>No stakeholders configured.</p>}</section>
+    <section><h3>Financial assumptions</h3>{view.assumptions.length ? <dl className="student-assumptions">{view.assumptions.map(item => <div key={item.id}><dt>{item.label}</dt><dd><strong>{item.value}</strong><p>{item.explanation}</p></dd></div>)}</dl> : <p>No assumptions configured.</p>}<h4>Case documents</h4>{view.documents.length ? view.documents.map(document => <details className="student-document" key={document.id}><summary>{document.title || "Untitled case document"}</summary><p className="preserve-text">{document.content}</p></details>) : <p>No student-visible case documents configured.</p>}</section>
+    <section><h3>How your work will be assessed</h3><p>Rubric total: {rubricTotal(config)} points. This preview does not grade responses.</p>{view.rubric.length ? <ul className="student-rubric">{view.rubric.map(item => <li key={item.id}><strong>{item.title || "Unnamed criterion"} · {item.points} points</strong><p>{item.description}</p></li>)}</ul> : <p>No rubric criteria configured.</p>}</section>
+    <section><h3>Your required decisions</h3><form onSubmit={event => { event.preventDefault(); setTested(true); }}>{view.decisions.map(decision => <div className="form-field" key={decision.id}><label htmlFor={`test-${decision.id}`}>{decision.prompt || "Untitled decision"} *</label><p id={`hint-${decision.id}`}>{decision.guidance}</p><textarea id={`test-${decision.id}`} aria-describedby={`hint-${decision.id}`} aria-invalid={tested && missing.includes(decision.id)} rows={4} maxLength={10000} value={responses[decision.id] || ""} onChange={event => { setResponses({ ...responses, [decision.id]: event.target.value }); setTested(false); }} /></div>)}<div className="simulation-test-actions"><button className="button primary" disabled={!!issues.length || !view.decisions.length} type="submit">Test decision submission</button><button className="button secondary" type="button" onClick={() => { setResponses({}); setTested(false); }}>Clear test responses</button></div>{tested && <p role="status" className={missing.length ? "form-error" : "simulation-success"}>{missing.length ? `Complete all ${missing.length} unanswered required decisions, then test again.` : "Test passed: every required decision has a response. No response was sent, saved, or graded."}</p>}</form></section>
+  </div>;
+}

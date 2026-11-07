@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+
+async function load(path) {
+  const source = readFileSync(new URL(path, import.meta.url), "utf8");
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+}
+const { investmentCommitteeTemplate } = await load("../lib/investment-committee-template.ts");
+const { studentView, validateDecisionResponses, configurationIssues, rubricTotal } = await load("../lib/simulation-engine.ts");
+const { isSimulationDraft, duplicateSimulation, SIMULATION_PREFIX } = await load("../lib/simulation.ts");
+const config = investmentCommitteeTemplate("original");
+const draft = { config, stage: 5, updatedAt: new Date().toISOString() };
+assert.ok(isSimulationDraft(JSON.parse(JSON.stringify(draft))));
+assert.deepEqual(configurationIssues(config), []);
+assert.equal(rubricTotal(config), 100);
+const copy = duplicateSimulation(config, "copy");
+copy.stakeholders[0].name = "Different name";
+copy.documents[0].content = "Different document";
+assert.notEqual(copy.stakeholders[0].name, config.stakeholders[0].name);
+assert.notEqual(copy.documents[0].content, config.documents[0].content);
+assert.notEqual(SIMULATION_PREFIX + config.id, SIMULATION_PREFIX + copy.id);
+const storage = new Map();
+storage.set(SIMULATION_PREFIX + config.id, JSON.stringify(draft));
+storage.set(SIMULATION_PREFIX + copy.id, JSON.stringify({ ...draft, config: copy }));
+assert.equal(storage.size, 2);
+assert.equal(JSON.parse(storage.get(SIMULATION_PREFIX + config.id)).config.stakeholders[0].name, config.stakeholders[0].name);
+config.stakeholders[0].hiddenInformation = "SECRET-STAKEHOLDER-INFORMATION";
+config.documents.push({ id: "secret", title: "SECRET-DOCUMENT", audience: "instructor", content: "SECRET-CONTENT" });
+const view = studentView(config);
+assert.ok(!JSON.stringify(view).includes("SECRET"));
+assert.ok(view.stakeholders.every(item => !("hiddenInformation" in item)));
+assert.equal(view.documents.length, config.documents.filter(item => item.audience === "student").length);
+assert.deepEqual(validateDecisionResponses(config, {}), config.decisions.map(item => item.id));
+assert.equal(validateDecisionResponses(config, Object.fromEntries(config.decisions.map(item => [item.id, "Reasoned response"])) ).length, 0);
+assert.equal(validateDecisionResponses(config, { [config.decisions[0].id]: "   " }).length, config.decisions.length);
+assert.ok(configurationIssues({ ...config, decisions: [], title: "" }).length >= 2);
+assert.ok(!isSimulationDraft({ ...draft, stage: 8 }));
+assert.ok(!isSimulationDraft({ ...draft, config: { ...config, rubric: [{ id: "x", title: "x", description: "x", points: -1 }] } }));
+assert.ok(!isSimulationDraft({ ...draft, config: { ...config, documents: [{ id: "x", title: "x", content: "x", audience: "everyone" }] } }));
+console.log("PASS: typed draft round-trip, isolated deep copies and storage keys, student-view hidden content exclusion, rubric totals, required decisions, and invalid configuration handling.");
