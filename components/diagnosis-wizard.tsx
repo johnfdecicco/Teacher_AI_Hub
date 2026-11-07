@@ -23,6 +23,9 @@ function mergeProfile(current: CourseProfile, extracted: Partial<CourseProfile>)
 }
 
 async function analyzeSyllabus(file: File, context: string): Promise<Partial<CourseProfile>> {
+  if (process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") {
+    throw new Error("AI syllabus analysis needs the server version of Teacher Hub AI and isn't available on this hosted demo.");
+  }
   const body = new FormData();
   body.append("syllabus", file);
   if (context.trim()) body.append("context", context);

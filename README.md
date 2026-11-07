@@ -1,4 +1,4 @@
-﻿# Teacher Hub AI
+# Teacher Hub AI
 
 A curriculum workspace built with Next.js App Router, TypeScript, and Tailwind CSS 4. No authentication, database, document parser, or AI API is connected.
 
@@ -22,6 +22,16 @@ In Windows PowerShell, use `npm.cmd run dev` if execution policy blocks npm.ps1.
 8. Try keyboard navigation and mobile width. Dashboard and the other navigation pages remain available.
 
 Drafts use browser-local storage (`teacher-hub-course-profile-v2`). Existing v1 diagnosis fields are restored when no v2 draft exists. Clearing site data removes saved drafts. If storage is unavailable, the page reports that changes may not survive navigation or refresh. Files stay in memory during the diagnosis session and are never uploaded.
+
+## GitHub Pages
+
+`.github/workflows/deploy-pages.yml` builds a static export on every push to `main` and publishes it to `https://<user>.github.io/<repo>/`. In the repo's **Settings → Pages**, set **Source** to **GitHub Actions** (not "Deploy from a branch", which only renders this README).
+
+GitHub Pages can't run server code, so the hosted demo leaves out `app/api` and has no AI syllabus analysis. Professors fill in the Course Profile fields themselves there. Everything else works the same as `npm run dev`. To test the Pages build locally:
+
+```sh
+GITHUB_PAGES=true PAGES_BASE_PATH=/Teacher_AI_Hub npm run build   # after temporarily moving app/api aside
+```
 
 ## Checks
 
